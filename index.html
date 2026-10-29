@@ -494,7 +494,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v28, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v29, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -732,7 +732,7 @@ function renderPrizes(){
 
 /* ===================== weigh station ===================== */
 function wonAmount(a){ return a ? (a.sale ? (a.sale.amount||0) : (a.high||0)) : 0; }
-function auctionTotal(){ return Object.values(auction).reduce((s,a)=>s+wonAmount(a),0); }
+function auctionTotal(){ const names=new Set(boats.map(b=>b.boat)); return Object.entries(auction).reduce((s,[n,a])=>s+(names.has(n)?wonAmount(a):0),0); }
 function strip(cls,lab,sub,num){ return `<div class="ro-strip ${cls}"><span class="lab">${lab}${sub?`<small>${sub}</small>`:''}</span><span class="num">${num}</span></div>`; }
 function renderPotRules(){
   const pct=k=>Math.max(0,parseFloat(potsplit[k])||0);
@@ -829,7 +829,7 @@ function readBoatForms(){
     return {boat:g('boat').trim(),skipper:g('skipper').trim(),image:g('image').trim(),facts:g('facts').split('\n').map(s=>s.trim()).filter(Boolean),ski:card.querySelector('[data-f="ski"]').checked,yamaha:card.querySelector('[data-f="yamaha"]').checked};
   });
 }
-async function saveBoats(){ boats=readBoatForms().filter(b=>b.boat); await store.set('boats',boats); renderFleet(); const s=document.getElementById('boats-status'); s.className='status ok'; s.textContent='Saved. Live on the site.'; setTimeout(()=>{s.textContent='';},2500); }
+async function saveBoats(){ boats=readBoatForms().filter(b=>b.boat); await store.set('boats',boats); renderFleet(); renderMainPot(); renderPotRules(); renderPrizes(); renderLive(); const s=document.getElementById('boats-status'); s.className='status ok'; s.textContent='Saved. Live on the site.'; setTimeout(()=>{s.textContent='';},2500); }
 let photoTarget=null;
 document.getElementById('img-input').addEventListener('change',e=>{
   const file=e.target.files[0]; if(file==null||photoTarget==null) return;
