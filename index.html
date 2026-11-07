@@ -494,7 +494,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v29, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v31, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -594,6 +594,7 @@ const store = {
 /* ===================== state ===================== */
 let boats=[], auction={}, results={}, sponsors=[], catches=[], evidence=[], gallery=[], config={}, prizeInfo={}, potsplit={}, customPrizes=[];
 const money = n => 'TZS ' + Math.round(n||0).toLocaleString('en-US');
+const pts = n => (Math.round((n||0)*10)/10).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function boatSVG(){ return '<svg viewBox="0 0 120 84" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 46 h88 l-13 22 h-62 z"/><path d="M60 42 V8 l30 24 z"/><path d="M4 68 q11 9 22 0 t22 0 t22 0 t22 0 t22 0"/></svg>'; }
 
@@ -610,7 +611,7 @@ function renderFleet(){
     return `<div class="boat"><div class="boat-media">${boatMedia(b)}<span class="confirmed">Confirmed</span></div>
       <div class="boat-body"><h3>${esc(b.boat)}</h3><div class="skipper">Skipper · ${esc(b.skipper||'')}</div>
       <div class="boat-sub">Fun facts</div><ul class="facts">${facts}</ul>
-      <div class="bid-box"><div class="boat-sub" style="margin-top:0">Current bid</div>${bid}${soldLine}${a&&a.sale?'':`<button class="btn-sm primary bid-btn" data-bid="${esc(b.boat)}">Place a bid</button>`}</div>
+      <div class="bid-box"><div class="boat-sub" style="margin-top:0">Current bid</div>${bid}${soldLine}${config.bidsClosed?'<div class="bid-none" style="margin-top:12px">Bidding is closed</div>':(a&&a.sale?'':`<button class="btn-sm primary bid-btn" data-bid="${esc(b.boat)}">Place a bid</button>`)}</div>
       </div></div>`;
   }).join('');
 }
@@ -650,6 +651,7 @@ function openBidModal(name){
     if(res.ok){ auction=await store.get('auction')||auction; closeModal(); renderFleet(); renderMainPot(); return; }
     if(res.error==='low'){ st.textContent='Someone just bid higher, now '+money(res.current||cur)+'. Enter a higher amount.'; auction=await store.get('auction')||auction; renderFleet(); renderMainPot(); return; }
     if(res.error==='sold'){ st.textContent='This boat has already been sold.'; return; }
+    if(res.error==='closed'){ st.textContent='Bidding is closed, the tournament has started.'; return; }
     if(res.error==='offline'){ const hist=(auction[name]&&auction[name].history)||[]; auction[name]={high:amt,name:nm,phone:ph,member,acct,consent,history:[...hist,{amount:amt,name:nm,phone:ph,ts:Date.now()}]}; await store.set('auction',auction); closeModal(); renderFleet(); renderMainPot(); return; }
     st.textContent='Could not place the bid, please try again.';
   });
@@ -685,14 +687,14 @@ function bestAngler(flag){
   const map={};
   catches.forEach(c=>{ if(flag(c) && c.angler){ map[c.angler]=(map[c.angler]||0)+catchPoints(c); } });
   const ent=Object.entries(map).sort((a,b)=>b[1]-a[1])[0];
-  return ent ? {winner:ent[0], detail:Math.round(ent[1]).toLocaleString('en-US')+' pts'} : null;
+  return ent ? {winner:ent[0], detail:pts(ent[1])+' pts'} : null;
 }
 function autoWinner(id){
-  if(id==='boat1'||id==='boat2'||id==='boat3'){ const lb=leaderboard().filter(r=>r.points>0); const r=lb[{boat1:0,boat2:1,boat3:2}[id]]; return r?{winner:r.boat,detail:Math.round(r.points).toLocaleString('en-US')+' pts'}:null; }
+  if(id==='boat1'||id==='boat2'||id==='boat3'){ const lb=leaderboard().filter(r=>r.points>0); const r=lb[{boat1:0,boat2:1,boat3:2}[id]]; return r?{winner:r.boat,detail:pts(r.points)+' pts'}:null; }
   if(id==='billfish'){ const r=largestBillfish(MAIN_BILLFISH); if(r) return r; const bb=largestBillfish(new Set(['Broadbill'])); return bb?{winner:bb.winner,detail:'no billfish landed, moves to Broadbill · '+bb.detail}:null; }
   if(id==='broadbill') return largestBillfish(new Set(['Broadbill']));
-  if(id==='ski'){ const names=new Set(boats.filter(b=>b.ski).map(b=>b.boat)); const r=leaderboard().filter(x=>x.points>0).find(x=>names.has(x.boat)); return r?{winner:r.boat,detail:Math.round(r.points).toLocaleString('en-US')+' pts'}:null; }
-  if(id==='yamaha'){ const names=new Set(boats.filter(b=>b.yamaha).map(b=>b.boat)); const r=leaderboard().filter(x=>x.points>0).find(x=>names.has(x.boat)); return r?{winner:r.boat,detail:Math.round(r.points).toLocaleString('en-US')+' pts'}:null; }
+  if(id==='ski'){ const names=new Set(boats.filter(b=>b.ski).map(b=>b.boat)); const r=leaderboard().filter(x=>x.points>0).find(x=>names.has(x.boat)); return r?{winner:r.boat,detail:pts(r.points)+' pts'}:null; }
+  if(id==='yamaha'){ const names=new Set(boats.filter(b=>b.yamaha).map(b=>b.boat)); const r=leaderboard().filter(x=>x.points>0).find(x=>names.has(x.boat)); return r?{winner:r.boat,detail:pts(r.points)+' pts'}:null; }
   if(id==='junior') return bestAngler(c=>c.junior);
   if(id==='lady')   return bestAngler(c=>c.lady);
   const b = id==='largest' ? bestByWeight(c=>!c.released)
@@ -922,9 +924,19 @@ function renderAdminAuction(){
     <div class="row2"><div class="field"><label>2nd Buyer %</label><input id="ps-b2" type="number" min="0" step="0.5" value="${potsplit.b2}"></div><div class="field"><label>2nd Skipper %</label><input id="ps-s2" type="number" min="0" step="0.5" value="${potsplit.s2}"></div></div>
     <div class="row2"><div class="field"><label>3rd Buyer %</label><input id="ps-b3" type="number" min="0" step="0.5" value="${potsplit.b3}"></div><div class="field"><label>3rd Skipper %</label><input id="ps-s3" type="number" min="0" step="0.5" value="${potsplit.s3}"></div></div>
     <div class="admin-actions"><button class="btn-sm primary" id="save-potsplit">Save pot split</button><span class="status" id="ps-status"></span></div></div>
-    <div class="admin-card"><h4>Auction and presentation</h4><p class="note" style="margin-top:0">Total in the pot from winning bids: <b style="color:var(--readout)">${money(auctionTotal())}</b></p>
-    <div class="admin-actions"><button class="btn-sm primary" id="start-present">Start presentation mode</button><button class="btn-sm danger" id="reset-auction">Reset all bids</button></div></div>
-    <div class="admin-card">${ boats.length ? boats.map(b=>{ const a=auction[b.boat]; return `<div class="res-row"><div><div style="font-family:Oswald;text-transform:uppercase">${esc(b.boat)}</div><div class="res-meta">${a&&a.high?('Leading: '+esc(a.name)+' · '+esc(a.phone||'')+(a.member?(' · DYC a/c '+esc(a.acct||'')+(a.consent?' · consent ✓':' · no consent')):' · non-member')):'No bids yet'}${a&&a.sale?(' · SOLD '+money(a.sale.amount)+' to '+esc(a.sale.buyer||'')+(a.sale.phone?' · '+esc(a.sale.phone):'')+(a.sale.member?' · DYC bar '+esc(a.sale.bar||''):' · non-member')):''}</div></div><div style="font-family:JetBrains Mono;color:var(--readout);font-weight:700">${a&&a.high?money(a.high):'no bid'}</div></div>`; }).join('') : '<p class="note">Add boats first.</p>' }</div>`;
+    <div class="admin-card"><h4>Auction and presentation</h4><p class="note" style="margin-top:0">Total in the pot from winning bids: <b style="color:var(--readout)">${money(auctionTotal())}</b>. Bidding is currently <b style="color:${config.bidsClosed?'var(--danger)':'var(--teal)'}">${config.bidsClosed?'CLOSED':'OPEN'}</b>.</p>
+    <div class="admin-actions"><button class="btn-sm ${config.bidsClosed?'':'danger'}" id="toggle-bids">${config.bidsClosed?'Reopen bidding':'Close bidding now'}</button><button class="btn-sm primary" id="start-present">Start presentation mode</button><button class="btn-sm danger" id="reset-auction">Reset all bids</button></div></div>
+    <div class="admin-card"><h4>Boats, bids and final sales</h4>
+      <p class="note" style="margin-top:0">Record or correct the winning sale for each boat. Enter the final amount, buyer and contact, and for members the DYC bar number.</p>
+      ${ boats.length ? boats.map(b=>{ const a=auction[b.boat]||{}; const s=a.sale||{};
+        return `<div class="sale-row" data-sb="${esc(b.boat)}" style="padding:14px 0;border-bottom:1px dashed var(--line)">
+          <div style="font-family:Oswald;text-transform:uppercase;letter-spacing:.04em">${esc(b.boat)}${a.sale?' <span style="color:var(--readout)">· SOLD</span>':''}</div>
+          <div class="res-meta">${a.high?('Top online bid: '+money(a.high)+' ('+esc(a.name||'')+(a.member?(', DYC a/c '+esc(a.acct||'')):'')+')'):'No online bids'}</div>
+          <div class="row2" style="margin-top:8px"><div class="field" style="margin:0"><label>Final sale amount (TZS)</label><input class="mono" data-sa type="number" min="0" step="1000" value="${s.amount||''}"></div><div class="field" style="margin:0"><label>Buyer</label><input data-sbuyer value="${esc(s.buyer||'')}"></div></div>
+          <div class="row2"><div class="field" style="margin:0"><label>Contact number</label><input data-sphone value="${esc(s.phone||'')}"></div><div class="field" style="margin:0"><label>DYC member?</label><select data-smember><option value="no"${s.member?'':' selected'}>No</option><option value="yes"${s.member?' selected':''}>Yes</option></select></div></div>
+          <div class="field" style="margin:0"><label>DYC bar number (members)</label><input data-sbar value="${esc(s.bar||'')}"></div>
+          <div class="admin-actions" style="margin:12px 0 0"><button class="btn-sm primary" data-savesale="${esc(b.boat)}">Save sale</button>${a.sale?`<button class="btn-sm danger" data-clearsale="${esc(b.boat)}">Clear sale</button>`:''}</div>
+        </div>`; }).join('') : '<p class="note">Add boats first.</p>' }</div>`;
   document.getElementById('start-present').addEventListener('click',()=>{ document.getElementById('admin').classList.remove('open'); startPresentation(); });
   document.getElementById('save-potsplit').addEventListener('click',async()=>{
     const g=id=>parseFloat(document.getElementById(id).value)||0; const ovv=parseFloat(document.getElementById('ps-override').value);
@@ -934,6 +946,16 @@ function renderAdminAuction(){
     const st=document.getElementById('ps-status'); st.className='status ok'; st.textContent='Saved.'+(Math.abs(sum-100)>0.01?(' Heads up, these add up to '+sum+'%, not 100%.'):''); setTimeout(()=>{st.textContent='';},4000);
   });
   const ra=document.getElementById('reset-auction'); ra.addEventListener('click',async()=>{ if(confirmTwice(ra)){ auction={}; await store.set('auction',auction); renderAdminAuction(); renderFleet(); renderMainPot(); } });
+  document.getElementById('toggle-bids').addEventListener('click',async()=>{ config.bidsClosed=!config.bidsClosed; await store.set('config',config); renderAdminAuction(); renderFleet(); });
+  el.querySelectorAll('[data-savesale]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const boat=btn.getAttribute('data-savesale'); const row=btn.closest('[data-sb]');
+    const amt=parseFloat(row.querySelector('[data-sa]').value)||0; const buyer=row.querySelector('[data-sbuyer]').value.trim();
+    if(!amt||!buyer){ alert('Enter at least the final amount and buyer for '+boat+'.'); return; }
+    const member=row.querySelector('[data-smember]').value==='yes';
+    const prev=auction[boat]||{}; auction[boat]={...prev,sale:{amount:amt,buyer,phone:row.querySelector('[data-sphone]').value.trim(),member,bar:row.querySelector('[data-sbar]').value.trim()}};
+    await store.set('auction',auction); renderFleet(); renderMainPot(); renderAdminAuction();
+  }));
+  el.querySelectorAll('[data-clearsale]').forEach(btn=>btn.addEventListener('click',async()=>{ const boat=btn.getAttribute('data-clearsale'); const prev=auction[boat]||{}; delete prev.sale; auction[boat]=prev; await store.set('auction',auction); renderFleet(); renderMainPot(); renderAdminAuction(); }));
 }
 function confirmTwice(btn){ if(btn.dataset.armed){ btn.dataset.armed=''; btn.textContent=btn.dataset.o||btn.textContent; return true; } btn.dataset.o=btn.textContent; btn.dataset.armed='1'; btn.textContent='Tap again to confirm'; setTimeout(()=>{btn.dataset.armed='';btn.textContent=btn.dataset.o;},2500); return false; }
 
@@ -1020,7 +1042,7 @@ function leaderboard(){
 function renderLive(){
   const el=document.getElementById('live-body'); if(!el) return;
   const lb=leaderboard();
-  const rows = lb.length ? lb.map((r,i)=>`<tr><td class="rank">${i+1}</td><td class="sec">${esc(r.boat)}</td><td style="text-align:center">${r.fish}</td><td class="amt">${Math.round(r.points).toLocaleString('en-US')}</td></tr>`).join('') : '<tr><td colspan="4" class="empty-boats">No catches entered yet.</td></tr>';
+  const rows = lb.length ? lb.map((r,i)=>`<tr><td class="rank">${i+1}</td><td class="sec">${esc(r.boat)}</td><td style="text-align:center">${r.fish}</td><td class="amt">${pts(r.points)}</td></tr>`).join('') : '<tr><td colspan="4" class="empty-boats">No catches entered yet.</td></tr>';
   const ev = evidence.length ? evidence.map(e=> e.type==='video'
       ? `<div class="ev"><a class="ev-media vid" href="${esc(e.url)}" target="_blank" rel="noopener">▶ Watch video</a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
       : `<div class="ev"><a href="${esc(e.url)}" target="_blank" rel="noopener"><img class="ev-media" src="${esc(e.url)}" alt="${esc(e.caption||'catch')}" loading="lazy"></a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
@@ -1095,7 +1117,7 @@ function renderAdminCatches(){
 }
 function drawCatchList(){
   const el=document.getElementById('catch-list'); if(!el) return;
-  el.innerHTML = catches.length ? catches.map((c,i)=>`<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.weight} kg · Day ${esc(c.day)} · ${Math.round(catchPoints(c))} pts${c.released?' · released':''}${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`).join('') : '<p class="note">No catches yet.</p>';
+  el.innerHTML = catches.length ? catches.map((c,i)=>`<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.weight} kg · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.released?' · released':''}${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`).join('') : '<p class="note">No catches yet.</p>';
   el.querySelectorAll('[data-cdel]').forEach(x=>x.addEventListener('click',async()=>{ catches.splice(+x.dataset.cdel,1); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); }));
 }
 function drawEvList(){
