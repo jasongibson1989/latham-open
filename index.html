@@ -312,6 +312,22 @@
   .admin-card.collapsed>h4{margin-bottom:0}
   .admin-card.collapsed>*:not(h4){display:none}
   .admin-actions select{background:var(--ink);border:1px solid var(--line);color:var(--foam);border-radius:3px;padding:11px 12px;font-family:"Archivo";font-size:.9rem}
+  .stage-btn{display:block;width:100%;font-family:"Oswald";font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:1.3rem;padding:20px;border-radius:4px;border:0;cursor:pointer;background:var(--brass);color:#241701;margin-bottom:12px}
+  .stage-btn:hover{background:#f0b94f}
+  .stage-row{display:flex;gap:8px;flex-wrap:wrap}
+  .pg-stage{min-height:calc(100vh - 150px);display:flex;align-items:center;justify-content:center;padding:30px 22px}
+  .pg-card{max-width:900px;text-align:center}
+  .pg-prizename{font-family:"Oswald";font-weight:700;text-transform:uppercase;font-size:clamp(2rem,6vw,4rem);line-height:1;color:var(--foam)}
+  .pg-note{color:var(--foam-dim);margin-top:10px;font-size:1.1rem}
+  .pg-prize{color:var(--readout);margin-top:18px;font-size:1.3rem;line-height:1.5}
+  .pg-winner{margin-top:40px}
+  .pg-winner .lbl{font-family:"Oswald";text-transform:uppercase;letter-spacing:.2em;color:var(--teal);font-size:.9rem}
+  .pg-name{font-family:"Oswald";font-weight:700;text-transform:uppercase;font-size:clamp(2.6rem,8vw,6rem);line-height:1;color:var(--brass);text-shadow:0 0 30px rgba(228,169,59,.4)}
+  .pg-winner.pending .pg-name{color:var(--ink-3);text-shadow:none}
+  .pg-detail{color:var(--foam-dim);margin-top:12px;font-size:1.2rem}
+  .pg-card.final .pg-name{color:var(--readout)}
+  .confetti{position:fixed;top:-14px;width:9px;height:14px;opacity:.9;z-index:95;animation:fall 2.5s linear forwards}
+  @keyframes fall{to{transform:translateY(106vh) rotate(720deg)}}
 </style>
 </head>
 <body>
@@ -511,7 +527,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v39, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v40, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -523,6 +539,7 @@
       <button role="tab" aria-selected="false" data-tab="catches">Weigh &amp; catches</button>
       <button role="tab" aria-selected="false" data-tab="sponsors">Sponsors</button>
       <button role="tab" aria-selected="false" data-tab="gallery">Gallery</button>
+      <button role="tab" aria-selected="false" data-tab="prizegiving">Prize giving</button>
     </div>
     <div id="tab-boats"></div>
     <div id="tab-prizes" style="display:none"></div>
@@ -530,10 +547,17 @@
     <div id="tab-catches" style="display:none"></div>
     <div id="tab-sponsors" style="display:none"></div>
     <div id="tab-gallery" style="display:none"></div>
+    <div id="tab-prizegiving" style="display:none"></div>
   </div>
 </div>
 
 <!-- PRESENTATION -->
+<div class="full present" id="prizegiving">
+  <div class="full-bar"><h2>Prize giving</h2><button class="btn-sm" id="pg-close">Exit</button></div>
+  <div class="pg-stage" id="pg-stage"></div>
+  <div class="present-nav"><button class="btn-sm" id="pg-prev">← Back</button><span class="present-count" id="pg-count"></span><button class="btn-sm primary" id="pg-next">Reveal →</button></div>
+</div>
+
 <div class="full present" id="present">
   <div class="full-bar"><h2>Auction · presentation</h2><button class="btn-sm" id="present-close">Exit</button></div>
   <div class="present-stage" id="present-stage"></div>
@@ -547,6 +571,7 @@
 /* ===================== config ===================== */
 const ADMIN_PASSWORD = "latham2026";   // offline fallback only; on the live site set ADMIN_PASSWORD in Netlify env vars
 const SPECIES = ["Dorado","Tuna","Wahoo","GT","Sailfish","Black Marlin","Blue Marlin","Striped Marlin","Broadbill","Spearfish","Other"];
+const STAGES = ["Fishing in progress","Boats in the gap","Weigh-in closed","Awaiting prize giving","Final results"];
 const POTSPLIT_DEFAULT = {club:35,b1:25,s1:5,b2:20,s2:2.5,b3:10,s3:2.5,override:null};
 const BILLFISH = new Set(["Sailfish","Black Marlin","Blue Marlin","Striped Marlin","Marlin","Broadbill","Spearfish"]);
 function catchPoints(c){ return effWeight(c) * (BILLFISH.has(c.species)?4:1); }
@@ -800,13 +825,14 @@ function openAdmin(){ document.getElementById('admin').classList.add('open'); sh
 document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
 function showTab(name){
   document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
-  ['boats','prizes','auction','sponsors','catches','gallery'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+  ['boats','prizes','auction','sponsors','catches','gallery','prizegiving'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
   if(name==='boats') renderAdminBoats();
   if(name==='prizes') renderAdminPrizes();
   if(name==='auction') renderAdminAuction();
   if(name==='sponsors') renderAdminSponsors();
   if(name==='catches') renderAdminCatches();
   if(name==='gallery') renderAdminGallery();
+  if(name==='prizegiving') renderAdminPrizeGiving();
 }
 
 /* --- admin: boats --- */
@@ -1116,7 +1142,12 @@ function drawSponsorForms(){
 /* ===================== admin: catches + evidence + status ===================== */
 function renderAdminCatches(){
   const el=document.getElementById('tab-catches');
-  el.innerHTML=`<div class="admin-card"><h4>Weigh station status</h4><div class="field"><label>Status note shown to members (e.g. "Updated after Day 1")</label><input id="live-status-in" value="${esc(config.liveStatus||'')}"></div><button class="btn-sm primary" id="save-status">Save status</button> <span class="status" id="status-status"></span></div>
+  el.innerHTML=`<div class="admin-card"><h4>Competition status</h4>
+      <button class="stage-btn" id="stage-btn">${esc(config.liveStatus||'Set the status')}</button>
+      <div class="stage-row">${STAGES.map((s,k)=>`<button class="btn-sm${config.stageIdx===k?' primary':''}" data-stage="${k}">${esc(s)}</button>`).join('')}</div>
+      <div class="field" style="margin-top:14px"><label>Or type a custom status message</label><input id="live-status-in" value="${esc(config.liveStatus||'')}"></div>
+      <div class="admin-actions" style="margin:6px 0 0"><button class="btn-sm" id="save-status">Save custom status</button><span class="status" id="status-status"></span></div>
+      <p class="note" style="margin:8px 0 0">Tap the big button to step through the day. The status shows live for everyone.</p></div>
     <div class="admin-card"><h4>Add a catch</h4>
       <div class="row2"><div class="field"><label>Boat</label><select id="c-boat">${boats.map(b=>`<option>${esc(b.boat)}</option>`).join('')}</select></div><div class="field"><label>Species</label><select id="c-species">${SPECIES.map(s=>`<option>${s}</option>`).join('')}</select></div></div>
       <div class="row2"><div class="field"><label>Weight (kg), leave blank for a released billfish</label><input id="c-weight" type="number" min="0" step="0.1"></div><div class="field"><label>Day</label><select id="c-day"><option>1</option><option>2</option></select></div></div>
@@ -1146,7 +1177,9 @@ function renderAdminCatches(){
       <div class="field"><label>Caption</label><input id="e-cap"></div>
       <div class="admin-actions"><button class="btn-sm" id="e-upload">Upload photo</button><button class="btn-sm primary" id="add-ev">Add evidence</button></div>
       <div id="ev-list"></div></div>`;
-  document.getElementById('save-status').addEventListener('click',async()=>{ config.liveStatus=document.getElementById('live-status-in').value.trim(); await store.set('config',config); renderLive(); const s=document.getElementById('status-status'); s.className='status ok'; s.textContent='Saved.'; setTimeout(()=>s.textContent='',2000); });
+  document.getElementById('save-status').addEventListener('click',async()=>{ config.liveStatus=document.getElementById('live-status-in').value.trim(); config.stageIdx=null; await store.set('config',config); renderAdminCatches(); renderLive(); });
+  document.getElementById('stage-btn').addEventListener('click',async()=>{ const next=(config.stageIdx==null?0:Math.min(config.stageIdx+1,STAGES.length-1)); config.stageIdx=next; config.liveStatus=STAGES[next]; await store.set('config',config); renderAdminCatches(); renderLive(); });
+  document.querySelectorAll('[data-stage]').forEach(b=>b.addEventListener('click',async()=>{ const k=+b.dataset.stage; config.stageIdx=k; config.liveStatus=STAGES[k]; await store.set('config',config); renderAdminCatches(); renderLive(); }));
   document.getElementById('c-review').addEventListener('change',e=>{ document.getElementById('c-review-block').style.display=e.target.checked?'block':'none'; });
   document.getElementById('c-evupload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('c-evurl').value=d; }, 800, 0.7));
   document.getElementById('add-catch').addEventListener('click',async()=>{ const cb=document.getElementById('c-boat').value; const released=document.getElementById('c-released').checked; const w=parseFloat(document.getElementById('c-weight').value)||0;
@@ -1160,7 +1193,7 @@ function renderAdminCatches(){
       else if(raw){ entry.evUrl=raw; }
     }
     catches.push(entry); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
-  document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; evidence.push({boat:document.getElementById('e-boat').value,type:document.getElementById('e-type').value,url,caption:document.getElementById('e-cap').value.trim()}); await store.set('evidence',evidence); renderAdminCatches(); renderLive(); });
+  document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; const type=document.getElementById('e-type').value; const boat=document.getElementById('e-boat').value; const caption=document.getElementById('e-cap').value.trim(); evidence.push({boat,type,url,caption}); await store.set('evidence',evidence); if(type==='photo' && !gallery.some(g=>g.url===url)){ gallery.push({url,caption:caption||boat,year:String(new Date().getFullYear())}); await store.set('gallery',gallery); renderGallery(); } renderAdminCatches(); renderLive(); });
   document.getElementById('e-upload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('e-url').value=d; document.getElementById('e-type').value='photo'; }));
   document.getElementById('nf-day').addEventListener('change',drawNoFish);
   document.getElementById('c-day').addEventListener('change',drawCatchBoats);
@@ -1236,6 +1269,43 @@ function renderAdminGallery(){
   gl.innerHTML = gallery.length ? gallery.map((g,i)=>`<div class="res-row"><div style="display:flex;gap:12px;align-items:center"><img class="thumb" src="${esc(g.url)}"><div class="res-meta">${esc(g.caption||'')}${g.year?' · '+esc(g.year):''}</div></div><button class="btn-sm danger" data-gdel="${i}">Remove</button></div>`).join('') : '<p class="note">No photos yet.</p>';
   gl.querySelectorAll('[data-gdel]').forEach(x=>x.addEventListener('click',async()=>{ gallery.splice(+x.dataset.gdel,1); await store.set('gallery',gallery); renderAdminGallery(); renderGallery(); }));
 }
+
+
+/* ===================== prize giving ===================== */
+function prizeGivingList(){
+  const L=[];
+  PRIZES.filter(p=>!p.money).forEach(p=>L.push({label:p.label,note:p.note,prize:(prizeInfo[p.id]||p.prize||''),winner:prizeWinner(p.id)}));
+  (customPrizes||[]).forEach(cp=>L.push({label:cp.label,note:cp.note,prize:cp.prize,winner:(cp.mode==='auto'?autoCustom(cp):(cp.winner?{winner:cp.winner,detail:cp.detail}:null))}));
+  ['boat3','boat2','boat1'].forEach(id=>{ const p=PRIZES.find(x=>x.id===id); if(p) L.push({label:p.label,note:p.note,prize:(prizeInfo[id]||p.prize||''),winner:prizeWinner(id)}); });
+  return L.filter(x=>x.winner && x.winner.winner);
+}
+function renderAdminPrizeGiving(){
+  const el=document.getElementById('tab-prizegiving'); const list=prizeGivingList();
+  el.innerHTML=`<div class="admin-card"><h4>Prize giving</h4>
+    <p class="note" style="margin-top:0">A full-screen slideshow for the night. Each prize shows first, then the next click reveals the winner with confetti, building up to the overall winner (1st Boat). Only prizes that have a winner are included.</p>
+    <div class="admin-actions"><button class="btn-sm primary" id="start-pg"${list.length?'':' disabled'}>Start prize giving (${list.length})</button></div>
+    <div>${list.length?list.map((x,i)=>`<div class="res-meta" style="margin:4px 0">${i+1}. ${esc(x.label)} &rarr; <b style="color:var(--readout)">${esc(x.winner.winner)}</b></div>`).join(''):'<p class="note">No winners yet.</p>'}</div></div>`;
+  const b=document.getElementById('start-pg'); if(b) b.addEventListener('click',()=>{ document.getElementById('admin').classList.remove('open'); startPrizeGiving(); });
+}
+let pgList=[], pgIndex=0, pgRevealed=false;
+function startPrizeGiving(){ pgList=prizeGivingList(); if(!pgList.length){ alert('No winners to show yet.'); return; } pgIndex=0; pgRevealed=false; document.getElementById('prizegiving').classList.add('open'); drawPG(); }
+function drawPG(){
+  const x=pgList[pgIndex]; if(!x) return; const isFinal=pgIndex===pgList.length-1;
+  const winnerBlock = pgRevealed
+    ? `<div class="pg-winner"><div class="lbl">Winner</div><div class="pg-name">${esc(x.winner.winner)}</div>${x.winner.detail?`<div class="pg-detail">${esc(x.winner.detail)}</div>`:''}</div>`
+    : `<div class="pg-winner pending"><div class="lbl">Winner</div><div class="pg-name">?</div></div>`;
+  document.getElementById('pg-stage').innerHTML=`<div class="pg-card${isFinal?' final':''}">${isFinal?'<div class="eyebrow" style="text-align:center;margin-bottom:10px">Overall winner</div>':''}<div class="pg-prizename">${esc(x.label)}</div>${x.note?`<div class="pg-note">${esc(x.note)}</div>`:''}${x.prize?`<div class="pg-prize">${esc(x.prize).replace(/\n/g,'<br>')}</div>`:''}${winnerBlock}</div>`;
+  document.getElementById('pg-count').textContent=`Prize ${pgIndex+1} of ${pgList.length}`;
+  document.getElementById('pg-next').textContent = pgRevealed ? (isFinal?'Finish':'Next prize →') : 'Reveal winner';
+  if(pgRevealed) confetti();
+}
+function pgNext(){ const isFinal=pgIndex===pgList.length-1; if(!pgRevealed){ pgRevealed=true; drawPG(); return; } if(isFinal){ document.getElementById('prizegiving').classList.remove('open'); return; } pgIndex++; pgRevealed=false; drawPG(); }
+function pgPrev(){ if(pgRevealed){ pgRevealed=false; drawPG(); return; } if(pgIndex>0){ pgIndex--; pgRevealed=true; drawPG(); } }
+function confetti(){ const colors=['#E4A93B','#21C0D6','#EFEADD','#0E7C8C','#F5C244']; const host=document.getElementById('prizegiving'); if(!host) return; for(let i=0;i<90;i++){ const d=document.createElement('div'); d.className='confetti'; d.style.left=(Math.random()*100)+'vw'; d.style.background=colors[i%colors.length]; d.style.animationDelay=(Math.random()*0.3)+'s'; host.appendChild(d); setTimeout(()=>d.remove(),2700); } }
+document.getElementById('pg-next').addEventListener('click',pgNext);
+document.getElementById('pg-prev').addEventListener('click',pgPrev);
+document.getElementById('pg-close').addEventListener('click',()=>document.getElementById('prizegiving').classList.remove('open'));
+document.addEventListener('keydown',e=>{ if(!document.getElementById('prizegiving').classList.contains('open')) return; if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();pgNext();} if(e.key==='ArrowLeft')pgPrev(); if(e.key==='Escape')document.getElementById('prizegiving').classList.remove('open'); });
 
 async function boot(){
   const db=await store.all();
