@@ -295,6 +295,9 @@
   .trow .e{color:var(--foam);font-size:.95rem}
   .tsub{font-family:"Oswald";font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem;color:var(--teal);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
   .tnote{color:var(--foam-dim);font-size:.84rem;margin:12px 0 0;line-height:1.5}
+  .daytags{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .daytag{font-family:"Oswald";text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;padding:6px 12px;border-radius:2px;border:1px solid var(--line);color:var(--foam-dim)}
+  .daytag.done{border-color:var(--teal-deep);color:var(--teal)}
 </style>
 </head>
 <body>
@@ -494,7 +497,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v31, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v32, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -714,7 +717,7 @@ function prizeCard(label,note,tag,physical,winner,money){
 function autoCustom(cp){
   if(cp.ruleType==='largest'){ const b=bestByWeight(c=>c.species===cp.species && !c.released); return b?{winner:b.boat,detail:b.species+' · '+b.w+' kg'}:null; }
   if(cp.ruleType==='most'){ const m={}; catches.forEach(c=>{ if(c.species===cp.species) m[c.boat]=(m[c.boat]||0)+1; }); const e=Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; return e?{winner:e[0],detail:e[1]+' '+(cp.species||'').toLowerCase()}:null; }
-  if(cp.ruleType==='mostfish'){ const m={}; catches.forEach(c=>{ m[c.boat]=(m[c.boat]||0)+1; }); const e=Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; return e?{winner:e[0],detail:e[1]+' fish'}:null; }
+  if(cp.ruleType==='mostfish'){ const m={}; catches.forEach(c=>{ if(c.nofish) return; m[c.boat]=(m[c.boat]||0)+1; }); const e=Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; return e?{winner:e[0],detail:e[1]+' fish'}:null; }
   return null;
 }
 function renderPrizes(){
@@ -1036,9 +1039,11 @@ function renderGallery(){
 /* ===================== live leaderboard + evidence (gated) ===================== */
 function leaderboard(){
   const map={}; boats.forEach(b=>map[b.boat]={boat:b.boat,points:0,fish:0});
-  catches.forEach(c=>{ if(!map[c.boat]) map[c.boat]={boat:c.boat,points:0,fish:0}; map[c.boat].points+=catchPoints(c); map[c.boat].fish++; });
+  catches.forEach(c=>{ if(c.nofish) return; if(!map[c.boat]) map[c.boat]={boat:c.boat,points:0,fish:0}; map[c.boat].points+=catchPoints(c); map[c.boat].fish++; });
   return Object.values(map).sort((a,b)=>b.points-a.points);
 }
+function hasWeighed(boat,day){ return catches.some(c=>c.boat===boat && String(c.day)===String(day)); }
+function stillToWeigh(day){ return boats.filter(b=>!hasWeighed(b.boat,day)).map(b=>b.boat); }
 function renderLive(){
   const el=document.getElementById('live-body'); if(!el) return;
   const lb=leaderboard();
@@ -1047,7 +1052,8 @@ function renderLive(){
       ? `<div class="ev"><a class="ev-media vid" href="${esc(e.url)}" target="_blank" rel="noopener">▶ Watch video</a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
       : `<div class="ev"><a href="${esc(e.url)}" target="_blank" rel="noopener"><img class="ev-media" src="${esc(e.url)}" alt="${esc(e.caption||'catch')}" loading="lazy"></a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
     ).join('') : '<p class="empty-boats">Photos and videos appear here as the teams share them.</p>';
-  el.innerHTML=`${config.liveStatus?`<div class="live-status">${esc(config.liveStatus)}</div>`:''}
+  const dayTag=(d)=>{ if(!boats.length) return ''; const left=stillToWeigh(d); return left.length===0 ? `<span class="daytag done">Day ${d} weigh in complete</span>` : `<span class="daytag">Day ${d}: ${boats.length-left.length}/${boats.length} weighed in</span>`; };
+  el.innerHTML=`${config.liveStatus?`<div class="live-status">${esc(config.liveStatus)}</div>`:''}<div class="daytags">${dayTag(1)}${dayTag(2)}</div>
     <table class="lb"><thead><tr><th>#</th><th>Boat</th><th style="text-align:center">Fish</th><th style="text-align:right">Points</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="sub-head">Catch evidence</div><div class="ev-grid">${ev}</div>`;
 }
@@ -1102,6 +1108,11 @@ function renderAdminCatches(){
       <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:6px"><label class="chk" style="margin:0"><input type="checkbox" id="c-junior"> Junior angler</label><label class="chk" style="margin:0"><input type="checkbox" id="c-lady"> Lady angler</label></div>
       <div class="admin-actions"><button class="btn-sm primary" id="add-catch">Add catch</button></div>
       <p class="note" style="margin:0">Points: billfish 4 / kg, all other IGFA species 1 / kg. The leaderboard updates instantly.</p></div>
+    <div class="admin-card"><h4>Weigh-in, no fish</h4>
+      <p class="note" style="margin-top:0">Log boats that weighed in with nothing. The dropdown only shows boats that still need to weigh in for the chosen day.</p>
+      <div class="row2"><div class="field"><label>Day</label><select id="nf-day"><option>1</option><option>2</option></select></div><div class="field"><label>Boat (still to weigh in)</label><select id="nf-boat"></select></div></div>
+      <div class="admin-actions"><button class="btn-sm primary" id="nf-add">Mark no fish</button></div>
+      <div class="res-meta" id="nf-status" style="margin-top:4px"></div></div>
     <div class="admin-card"><h4>Catches (${catches.length})</h4><div id="catch-list"></div></div>
     <div class="admin-card"><h4>Catch evidence (photos &amp; videos)</h4>
       <div class="row2"><div class="field"><label>Boat</label><select id="e-boat">${boats.map(b=>`<option>${esc(b.boat)}</option>`).join('')}</select></div><div class="field"><label>Type</label><select id="e-type"><option value="photo">Photo</option><option value="video">Video link</option></select></div></div>
@@ -1113,11 +1124,25 @@ function renderAdminCatches(){
   document.getElementById('add-catch').addEventListener('click',async()=>{ const w=parseFloat(document.getElementById('c-weight').value)||0; if(!w) return; catches.push({boat:document.getElementById('c-boat').value,species:document.getElementById('c-species').value,weight:w,released:document.getElementById('c-released').checked,day:document.getElementById('c-day').value,angler:document.getElementById('c-angler').value.trim(),junior:document.getElementById('c-junior').checked,lady:document.getElementById('c-lady').checked,ts:Date.now()}); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
   document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; evidence.push({boat:document.getElementById('e-boat').value,type:document.getElementById('e-type').value,url,caption:document.getElementById('e-cap').value.trim()}); await store.set('evidence',evidence); renderAdminCatches(); renderLive(); });
   document.getElementById('e-upload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('e-url').value=d; document.getElementById('e-type').value='photo'; }));
-  drawCatchList(); drawEvList();
+  document.getElementById('nf-day').addEventListener('change',drawNoFish);
+  document.getElementById('nf-add').addEventListener('click',async()=>{ const day=document.getElementById('nf-day').value; const boat=document.getElementById('nf-boat').value; if(!boat) return; catches.push({boat,day,nofish:true,ts:Date.now()}); await store.set('catches',catches); drawNoFish(); drawCatchList(); renderLive(); renderPrizes(); });
+  drawCatchList(); drawEvList(); drawNoFish();
+}
+function drawNoFish(){
+  const dayEl=document.getElementById('nf-day'); if(!dayEl) return;
+  const day=dayEl.value; const left=stillToWeigh(day);
+  const sel=document.getElementById('nf-boat');
+  sel.innerHTML = left.length ? left.map(n=>`<option>${esc(n)}</option>`).join('') : '<option value="">All boats weighed in</option>';
+  const st=document.getElementById('nf-status');
+  st.innerHTML = !boats.length ? 'Add boats first.' : (left.length ? ('Still to weigh in (Day '+day+'): '+left.map(esc).join(', ')) : ('<b style="color:var(--teal)">Day '+day+' weigh in complete</b>'));
+  const add=document.getElementById('nf-add'); if(add) add.disabled=!left.length;
 }
 function drawCatchList(){
   const el=document.getElementById('catch-list'); if(!el) return;
-  el.innerHTML = catches.length ? catches.map((c,i)=>`<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.weight} kg · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.released?' · released':''}${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`).join('') : '<p class="note">No catches yet.</p>';
+  el.innerHTML = catches.length ? catches.map((c,i)=> c.nofish
+    ? `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · No fish</div><div class="res-meta">Day ${esc(c.day)} · weighed in, nothing caught</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`
+    : `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.weight} kg · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.released?' · released':''}${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`
+  ).join('') : '<p class="note">No catches yet.</p>';
   el.querySelectorAll('[data-cdel]').forEach(x=>x.addEventListener('click',async()=>{ catches.splice(+x.dataset.cdel,1); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); }));
 }
 function drawEvList(){
