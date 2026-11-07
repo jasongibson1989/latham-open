@@ -298,6 +298,10 @@
   .daytags{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
   .daytag{font-family:"Oswald";text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;padding:6px 12px;border-radius:2px;border:1px solid var(--line);color:var(--foam-dim)}
   .daytag.done{border-color:var(--teal-deep);color:var(--teal)}
+  .lb-wrap{overflow-x:auto}
+  td.wstat,th.wstat{white-space:nowrap}
+  .wtag{display:inline-block;font-family:"Oswald";text-transform:uppercase;letter-spacing:.06em;font-size:.6rem;padding:3px 7px;border-radius:2px;border:1px solid var(--line);color:var(--foam-dim);margin-right:5px}
+  .wtag.ok{border-color:var(--teal-deep);color:var(--teal)}
 </style>
 </head>
 <body>
@@ -497,7 +501,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v32, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v33, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1047,14 +1051,15 @@ function stillToWeigh(day){ return boats.filter(b=>!hasWeighed(b.boat,day)).map(
 function renderLive(){
   const el=document.getElementById('live-body'); if(!el) return;
   const lb=leaderboard();
-  const rows = lb.length ? lb.map((r,i)=>`<tr><td class="rank">${i+1}</td><td class="sec">${esc(r.boat)}</td><td style="text-align:center">${r.fish}</td><td class="amt">${pts(r.points)}</td></tr>`).join('') : '<tr><td colspan="4" class="empty-boats">No catches entered yet.</td></tr>';
+  const wtags=(boat)=>{ const d1=hasWeighed(boat,'1'), d2=hasWeighed(boat,'2'); if(!d1&&!d2) return '<span class="wtag await">Awaiting weigh-in</span>'; return (d1?'<span class="wtag ok">Day 1 ✓</span>':'')+(d2?'<span class="wtag ok">Day 2 ✓</span>':''); };
+  const rows = lb.length ? lb.map((r,i)=>`<tr><td class="rank">${i+1}</td><td class="sec">${esc(r.boat)}</td><td class="wstat">${wtags(r.boat)}</td><td style="text-align:center">${r.fish}</td><td class="amt">${pts(r.points)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-boats">No catches entered yet.</td></tr>';
   const ev = evidence.length ? evidence.map(e=> e.type==='video'
       ? `<div class="ev"><a class="ev-media vid" href="${esc(e.url)}" target="_blank" rel="noopener">▶ Watch video</a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
       : `<div class="ev"><a href="${esc(e.url)}" target="_blank" rel="noopener"><img class="ev-media" src="${esc(e.url)}" alt="${esc(e.caption||'catch')}" loading="lazy"></a><div class="ev-cap"><b>${esc(e.boat||'')}</b> ${esc(e.caption||'')}</div></div>`
     ).join('') : '<p class="empty-boats">Photos and videos appear here as the teams share them.</p>';
   const dayTag=(d)=>{ if(!boats.length) return ''; const left=stillToWeigh(d); return left.length===0 ? `<span class="daytag done">Day ${d} weigh in complete</span>` : `<span class="daytag">Day ${d}: ${boats.length-left.length}/${boats.length} weighed in</span>`; };
   el.innerHTML=`${config.liveStatus?`<div class="live-status">${esc(config.liveStatus)}</div>`:''}<div class="daytags">${dayTag(1)}${dayTag(2)}</div>
-    <table class="lb"><thead><tr><th>#</th><th>Boat</th><th style="text-align:center">Fish</th><th style="text-align:right">Points</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="lb-wrap"><table class="lb"><thead><tr><th>#</th><th>Boat</th><th class="wstat">Status</th><th style="text-align:center">Fish</th><th style="text-align:right">Points</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="sub-head">Catch evidence</div><div class="ev-grid">${ev}</div>`;
 }
 
