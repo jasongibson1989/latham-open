@@ -501,7 +501,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v33, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v34, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1126,12 +1126,20 @@ function renderAdminCatches(){
       <div class="admin-actions"><button class="btn-sm" id="e-upload">Upload photo</button><button class="btn-sm primary" id="add-ev">Add evidence</button></div>
       <div id="ev-list"></div></div>`;
   document.getElementById('save-status').addEventListener('click',async()=>{ config.liveStatus=document.getElementById('live-status-in').value.trim(); await store.set('config',config); renderLive(); const s=document.getElementById('status-status'); s.className='status ok'; s.textContent='Saved.'; setTimeout(()=>s.textContent='',2000); });
-  document.getElementById('add-catch').addEventListener('click',async()=>{ const w=parseFloat(document.getElementById('c-weight').value)||0; if(!w) return; catches.push({boat:document.getElementById('c-boat').value,species:document.getElementById('c-species').value,weight:w,released:document.getElementById('c-released').checked,day:document.getElementById('c-day').value,angler:document.getElementById('c-angler').value.trim(),junior:document.getElementById('c-junior').checked,lady:document.getElementById('c-lady').checked,ts:Date.now()}); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
+  document.getElementById('add-catch').addEventListener('click',async()=>{ const w=parseFloat(document.getElementById('c-weight').value)||0; const cb=document.getElementById('c-boat').value; if(!w||!cb) return; catches.push({boat:cb,species:document.getElementById('c-species').value,weight:w,released:document.getElementById('c-released').checked,day:document.getElementById('c-day').value,angler:document.getElementById('c-angler').value.trim(),junior:document.getElementById('c-junior').checked,lady:document.getElementById('c-lady').checked,ts:Date.now()}); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
   document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; evidence.push({boat:document.getElementById('e-boat').value,type:document.getElementById('e-type').value,url,caption:document.getElementById('e-cap').value.trim()}); await store.set('evidence',evidence); renderAdminCatches(); renderLive(); });
   document.getElementById('e-upload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('e-url').value=d; document.getElementById('e-type').value='photo'; }));
   document.getElementById('nf-day').addEventListener('change',drawNoFish);
-  document.getElementById('nf-add').addEventListener('click',async()=>{ const day=document.getElementById('nf-day').value; const boat=document.getElementById('nf-boat').value; if(!boat) return; catches.push({boat,day,nofish:true,ts:Date.now()}); await store.set('catches',catches); drawNoFish(); drawCatchList(); renderLive(); renderPrizes(); });
-  drawCatchList(); drawEvList(); drawNoFish();
+  document.getElementById('c-day').addEventListener('change',drawCatchBoats);
+  document.getElementById('nf-add').addEventListener('click',async()=>{ const day=document.getElementById('nf-day').value; const boat=document.getElementById('nf-boat').value; if(!boat) return; catches.push({boat,day,nofish:true,ts:Date.now()}); await store.set('catches',catches); drawNoFish(); drawCatchBoats(); drawCatchList(); renderLive(); renderPrizes(); });
+  drawCatchList(); drawEvList(); drawNoFish(); drawCatchBoats();
+}
+function noFishBoats(day){ return new Set(catches.filter(c=>c.nofish && String(c.day)===String(day)).map(c=>c.boat)); }
+function drawCatchBoats(){
+  const dayEl=document.getElementById('c-day'); const sel=document.getElementById('c-boat'); if(!dayEl||!sel) return;
+  const nf=noFishBoats(dayEl.value); const avail=boats.filter(b=>!nf.has(b.boat)); const cur=sel.value;
+  sel.innerHTML = avail.length ? avail.map(b=>`<option>${esc(b.boat)}</option>`).join('') : '<option value="">No boats available for this day</option>';
+  if(cur && avail.some(b=>b.boat===cur)) sel.value=cur;
 }
 function drawNoFish(){
   const dayEl=document.getElementById('nf-day'); if(!dayEl) return;
