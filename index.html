@@ -328,6 +328,9 @@
   .pg-card.final .pg-name{color:var(--readout)}
   .confetti{position:fixed;top:-14px;width:9px;height:14px;opacity:.9;z-index:95;animation:fall 2.5s linear forwards}
   @keyframes fall{to{transform:translateY(106vh) rotate(720deg)}}
+  .pg-photo{margin:0 auto 22px;width:min(440px,72vw);aspect-ratio:16/10;border-radius:8px;overflow:hidden;border:1px solid var(--line);box-shadow:0 12px 44px rgba(0,0,0,.55)}
+  .pg-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .pg-boat{font-family:"Oswald";text-transform:uppercase;letter-spacing:.1em;color:var(--teal);margin-top:10px;font-size:1.1rem}
 </style>
 </head>
 <body>
@@ -527,7 +530,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v40, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v41, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1287,13 +1290,20 @@ function renderAdminPrizeGiving(){
     <div>${list.length?list.map((x,i)=>`<div class="res-meta" style="margin:4px 0">${i+1}. ${esc(x.label)} &rarr; <b style="color:var(--readout)">${esc(x.winner.winner)}</b></div>`).join(''):'<p class="note">No winners yet.</p>'}</div></div>`;
   const b=document.getElementById('start-pg'); if(b) b.addEventListener('click',()=>{ document.getElementById('admin').classList.remove('open'); startPrizeGiving(); });
 }
+function resolveBoat(name){ let b=boats.find(x=>x.boat===name); if(b) return b; const c=catches.find(c=>c.angler && c.angler===name); if(c) return boats.find(x=>x.boat===c.boat); return null; }
 let pgList=[], pgIndex=0, pgRevealed=false;
 function startPrizeGiving(){ pgList=prizeGivingList(); if(!pgList.length){ alert('No winners to show yet.'); return; } pgIndex=0; pgRevealed=false; document.getElementById('prizegiving').classList.add('open'); drawPG(); }
 function drawPG(){
   const x=pgList[pgIndex]; if(!x) return; const isFinal=pgIndex===pgList.length-1;
-  const winnerBlock = pgRevealed
-    ? `<div class="pg-winner"><div class="lbl">Winner</div><div class="pg-name">${esc(x.winner.winner)}</div>${x.winner.detail?`<div class="pg-detail">${esc(x.winner.detail)}</div>`:''}</div>`
-    : `<div class="pg-winner pending"><div class="lbl">Winner</div><div class="pg-name">?</div></div>`;
+  let winnerBlock;
+  if(pgRevealed){
+    const b=resolveBoat(x.winner.winner);
+    const photo=(b&&b.image)?`<div class="pg-photo"><img src="${esc(b.image)}" alt="${esc(b.boat)}"></div>`:'';
+    const aboard=(b && b.boat!==x.winner.winner)?`<div class="pg-boat">aboard ${esc(b.boat)}</div>`:'';
+    winnerBlock=`<div class="pg-winner">${photo}<div class="lbl">Winner</div><div class="pg-name">${esc(x.winner.winner)}</div>${aboard}${x.winner.detail?`<div class="pg-detail">${esc(x.winner.detail)}</div>`:''}</div>`;
+  } else {
+    winnerBlock=`<div class="pg-winner pending"><div class="lbl">Winner</div><div class="pg-name">?</div></div>`;
+  }
   document.getElementById('pg-stage').innerHTML=`<div class="pg-card${isFinal?' final':''}">${isFinal?'<div class="eyebrow" style="text-align:center;margin-bottom:10px">Overall winner</div>':''}<div class="pg-prizename">${esc(x.label)}</div>${x.note?`<div class="pg-note">${esc(x.note)}</div>`:''}${x.prize?`<div class="pg-prize">${esc(x.prize).replace(/\n/g,'<br>')}</div>`:''}${winnerBlock}</div>`;
   document.getElementById('pg-count').textContent=`Prize ${pgIndex+1} of ${pgList.length}`;
   document.getElementById('pg-next').textContent = pgRevealed ? (isFinal?'Finish':'Next prize →') : 'Reveal winner';
