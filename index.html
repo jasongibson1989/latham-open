@@ -156,7 +156,7 @@
   .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
   .field textarea{min-height:70px;resize:vertical}
   .row2{display:flex;gap:12px}.row2 .field{flex:1}
-  .btn-sm{font-family:"Oswald";font-weight:600;text-transform:uppercase;letter-spacing:.1em;font-size:.78rem;padding:12px 20px;border-radius:2px;cursor:pointer;border:1px solid var(--line);background:var(--ink);color:var(--foam);transition:.15s;line-height:1}
+  .btn-sm{display:inline-block;font-family:"Oswald";font-weight:600;text-transform:uppercase;letter-spacing:.1em;font-size:.78rem;padding:12px 20px;border-radius:2px;cursor:pointer;border:1px solid var(--line);background:var(--ink);color:var(--foam);transition:.15s;line-height:1;text-decoration:none}
   .btn-sm:hover{border-color:var(--teal);color:var(--teal)}
   .btn-sm.primary{background:var(--brass);color:#241701;border-color:var(--brass)}
   .btn-sm.primary:hover{background:#f0b94f;color:#241701}
@@ -306,6 +306,12 @@
   .rev-badge{font-family:"Oswald";text-transform:uppercase;letter-spacing:.06em;font-size:.6rem;padding:3px 7px;border-radius:2px;margin-left:6px}
   .rev-badge.pend{border:1px solid var(--brass-deep);color:var(--brass)}
   .rev-badge.rej{border:1px solid var(--danger);color:var(--danger)}
+  .admin-card>h4{cursor:pointer;user-select:none;position:relative;padding-left:24px}
+  .admin-card>h4::before{content:"\25BE";position:absolute;left:2px;top:0;color:var(--teal);transition:transform .15s}
+  .admin-card.collapsed>h4::before{transform:rotate(-90deg)}
+  .admin-card.collapsed>h4{margin-bottom:0}
+  .admin-card.collapsed>*:not(h4){display:none}
+  .admin-actions select{background:var(--ink);border:1px solid var(--line);color:var(--foam);border-radius:3px;padding:11px 12px;font-family:"Archivo";font-size:.9rem}
 </style>
 </head>
 <body>
@@ -505,7 +511,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v37, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v39, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -777,6 +783,7 @@ function renderMainPot(){
 let isAdmin=false;
 document.getElementById('admin-open').addEventListener('click',openAdminGate);
 document.getElementById('admin-close').addEventListener('click',()=>document.getElementById('admin').classList.remove('open'));
+document.getElementById('admin').addEventListener('click',e=>{ const hh=e.target.closest('h4'); if(hh && hh.parentElement && hh.parentElement.classList.contains('admin-card')) hh.parentElement.classList.toggle('collapsed'); });
 function openAdminGate(){
   if(isAdmin){ openAdmin(); return; }
   const ov=ensureOverlay(), box=ov.querySelector('.modal');
@@ -1192,11 +1199,13 @@ function drawReviewList(){
       <div style="font-family:Oswald;text-transform:uppercase;letter-spacing:.04em">${esc(c.boat)} · ${esc(c.species)} ${badge}</div>
       <div class="res-meta">${c.released?('released, counts '+effWeight(c)+' kg'):(esc(String(c.weight))+' kg')} · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.angler?(' · '+esc(c.angler)):''}${c.evNote?(' · '+esc(c.evNote)):''}</div>
       <div style="margin:10px 0">${ev}</div>
-      <div class="admin-actions" style="margin:0">${c.status==='pending'?`<button class="btn-sm primary" data-accept="${i}">Accept, counts</button><button class="btn-sm danger" data-reject="${i}">Reject</button>`:`<button class="btn-sm primary" data-accept="${i}">Reinstate (accept)</button>`}</div>
+      <div class="admin-actions" style="margin:8px 0 0"><select data-chspec="${i}">${SPECIES.map(sp=>`<option${c.species===sp?' selected':''}>${sp}</option>`).join('')}</select><button class="btn-sm" data-chapply="${i}">Change fish</button></div>
+      <div class="admin-actions" style="margin:8px 0 0">${c.status==='pending'?`<button class="btn-sm primary" data-accept="${i}">Accept, counts</button><button class="btn-sm danger" data-reject="${i}">Reject</button>`:`<button class="btn-sm primary" data-accept="${i}">Reinstate (accept)</button>`}</div>
     </div>`;
   }).join('');
   el.querySelectorAll('[data-accept]').forEach(b=>b.addEventListener('click',async()=>{ catches[+b.dataset.accept].status='accepted'; await store.set('catches',catches); drawReviewList(); drawCatchList(); renderLive(); renderPrizes(); }));
   el.querySelectorAll('[data-reject]').forEach(b=>b.addEventListener('click',async()=>{ catches[+b.dataset.reject].status='rejected'; await store.set('catches',catches); drawReviewList(); drawCatchList(); renderLive(); renderPrizes(); }));
+  el.querySelectorAll('[data-chapply]').forEach(b=>b.addEventListener('click',async()=>{ const i=+b.dataset.chapply; const sp=document.querySelector('[data-chspec="'+i+'"]').value; catches[i].species=sp; await store.set('catches',catches); drawReviewList(); drawCatchList(); renderLive(); renderPrizes(); }));
   el.querySelectorAll('img[data-evkey]').forEach(async img=>{ const k=img.getAttribute('data-evkey'); if(EVCACHE[k]){ img.src=EVCACHE[k]; return; } try{ const v=await store.get(k); if(v){ EVCACHE[k]=v; img.src=v; } }catch(e){} });
 }
 function drawCatchList(){
