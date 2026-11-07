@@ -505,7 +505,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v35, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v36, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1141,10 +1141,15 @@ function renderAdminCatches(){
       <div id="ev-list"></div></div>`;
   document.getElementById('save-status').addEventListener('click',async()=>{ config.liveStatus=document.getElementById('live-status-in').value.trim(); await store.set('config',config); renderLive(); const s=document.getElementById('status-status'); s.className='status ok'; s.textContent='Saved.'; setTimeout(()=>s.textContent='',2000); });
   document.getElementById('c-review').addEventListener('change',e=>{ document.getElementById('c-review-block').style.display=e.target.checked?'block':'none'; });
-  document.getElementById('c-evupload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('c-evurl').value=d; }, 900, 0.75));
+  document.getElementById('c-evupload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('c-evurl').value=d; }, 800, 0.7));
   document.getElementById('add-catch').addEventListener('click',async()=>{ const w=parseFloat(document.getElementById('c-weight').value)||0; const cb=document.getElementById('c-boat').value; if(!w||!cb) return;
     const entry={boat:cb,species:document.getElementById('c-species').value,weight:w,released:document.getElementById('c-released').checked,day:document.getElementById('c-day').value,angler:document.getElementById('c-angler').value.trim(),junior:document.getElementById('c-junior').checked,lady:document.getElementById('c-lady').checked,ts:Date.now()};
-    if(document.getElementById('c-review').checked){ entry.status='pending'; entry.evUrl=document.getElementById('c-evurl').value.trim(); entry.evNote=document.getElementById('c-evnote').value.trim(); }
+    if(document.getElementById('c-review').checked){
+      entry.status='pending'; entry.evNote=document.getElementById('c-evnote').value.trim();
+      const raw=document.getElementById('c-evurl').value.trim();
+      if(raw.startsWith('data:')){ const id='ev'+Date.now().toString(36)+Math.floor(Math.random()*1e4); entry.evKey='rev-ev:'+id; await store.set(entry.evKey, raw); }
+      else if(raw){ entry.evUrl=raw; }
+    }
     catches.push(entry); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
   document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; evidence.push({boat:document.getElementById('e-boat').value,type:document.getElementById('e-type').value,url,caption:document.getElementById('e-cap').value.trim()}); await store.set('evidence',evidence); renderAdminCatches(); renderLive(); });
   document.getElementById('e-upload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('e-url').value=d; document.getElementById('e-type').value='photo'; }));
@@ -1169,13 +1174,17 @@ function drawNoFish(){
   st.innerHTML = !boats.length ? 'Add boats first.' : (left.length ? ('Still to weigh in (Day '+day+'): '+left.map(esc).join(', ')) : ('<b style="color:var(--teal)">Day '+day+' weigh in complete</b>'));
   const add=document.getElementById('nf-add'); if(add) add.disabled=!left.length;
 }
+const EVCACHE={};
 function drawReviewList(){
   const el=document.getElementById('review-list'); if(!el) return;
   const items=catches.map((c,i)=>({c,i})).filter(x=>x.c.status==='pending'||x.c.status==='rejected');
   if(!items.length){ el.innerHTML='<p class="note">No fish under review.</p>'; return; }
   el.innerHTML=items.map(({c,i})=>{
     const isImg=c.evUrl && (/^data:image/.test(c.evUrl) || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(c.evUrl));
-    const ev=c.evUrl ? (isImg?`<a href="${esc(c.evUrl)}" target="_blank" rel="noopener"><img class="rev-img" src="${esc(c.evUrl)}" alt="evidence"></a>`:`<a class="btn-sm" href="${esc(c.evUrl)}" target="_blank" rel="noopener">Open evidence</a>`) : '<span class="note">No evidence link attached</span>';
+    let ev;
+    if(c.evUrl){ ev = isImg?`<a href="${esc(c.evUrl)}" target="_blank" rel="noopener"><img class="rev-img" src="${esc(c.evUrl)}" alt="evidence"></a>`:`<a class="btn-sm" href="${esc(c.evUrl)}" target="_blank" rel="noopener">Open evidence</a>`; }
+    else if(c.evKey){ ev = `<img class="rev-img" data-evkey="${esc(c.evKey)}" alt="evidence">`; }
+    else { ev = '<span class="note">No evidence attached</span>'; }
     const badge=c.status==='rejected'?'<span class="rev-badge rej">Rejected</span>':'<span class="rev-badge pend">Under review</span>';
     return `<div style="padding:14px 0;border-bottom:1px dashed var(--line)">
       <div style="font-family:Oswald;text-transform:uppercase;letter-spacing:.04em">${esc(c.boat)} · ${esc(c.species)} ${badge}</div>
@@ -1186,6 +1195,7 @@ function drawReviewList(){
   }).join('');
   el.querySelectorAll('[data-accept]').forEach(b=>b.addEventListener('click',async()=>{ catches[+b.dataset.accept].status='accepted'; await store.set('catches',catches); drawReviewList(); drawCatchList(); renderLive(); renderPrizes(); }));
   el.querySelectorAll('[data-reject]').forEach(b=>b.addEventListener('click',async()=>{ catches[+b.dataset.reject].status='rejected'; await store.set('catches',catches); drawReviewList(); drawCatchList(); renderLive(); renderPrizes(); }));
+  el.querySelectorAll('img[data-evkey]').forEach(async img=>{ const k=img.getAttribute('data-evkey'); if(EVCACHE[k]){ img.src=EVCACHE[k]; return; } try{ const v=await store.get(k); if(v){ EVCACHE[k]=v; img.src=v; } }catch(e){} });
 }
 function drawCatchList(){
   const el=document.getElementById('catch-list'); if(!el) return;
