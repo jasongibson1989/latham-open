@@ -530,7 +530,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v43, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v44, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -714,9 +714,9 @@ function bestByWeight(filter){
   catches.forEach(c=>{ if(scored(c) && filter(c)){ const w=parseFloat(c.weight)||0; if(!best || w>best.w) best={boat:c.boat,species:c.species,w}; } });
   return best;
 }
-function boatBillfishPoints(boat,set){ return catches.filter(c=>scored(c) && c.boat===boat && set.has(c.species)).reduce((s,c)=>s+4*effWeight(c),0); }
+function boatBillfishPoints(boat,set){ return catches.filter(c=>scored(c) && !c.noBill && c.boat===boat && set.has(c.species)).reduce((s,c)=>s+4*effWeight(c),0); }
 function largestBillfish(set){
-  const list=catches.filter(c=>scored(c) && set.has(c.species)).map(c=>({...c,ew:effWeight(c)})).filter(c=>c.ew>0);
+  const list=catches.filter(c=>scored(c) && !c.noBill && set.has(c.species)).map(c=>({...c,ew:effWeight(c)})).filter(c=>c.ew>0);
   if(!list.length) return null;
   const maxEw=Math.max(...list.map(c=>c.ew));
   let top=list.filter(c=>Math.abs(c.ew-maxEw)<1e-6), note='';
@@ -1276,9 +1276,10 @@ function drawCatchList(){
   const items=catches.map((c,i)=>({c,i})).filter(x=>!x.c.bbcomp);
   el.innerHTML = items.length ? items.map(({c,i})=> c.nofish
     ? `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · No fish</div><div class="res-meta">Day ${esc(c.day)} · weighed in, nothing caught</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`
-    : `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.released?('released, counts '+effWeight(c)+' kg'):(esc(String(c.weight))+' kg')} · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}${c.status==='pending'?' · UNDER REVIEW':c.status==='rejected'?' · rejected':''}</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`
+    : `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.released?('released, counts '+effWeight(c)+' kg'):(esc(String(c.weight))+' kg')} · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}${c.status==='pending'?' · UNDER REVIEW':c.status==='rejected'?' · rejected':''}${c.noBill?' · not for Billfish award':''}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${MAIN_BILLFISH.has(c.species)?`<button class="btn-sm" data-nobill="${i}">${c.noBill?'Include in Billfish':'Exclude from Billfish'}</button>`:''}<button class="btn-sm danger" data-cdel="${i}">Remove</button></div></div>`
   ).join('') : '<p class="note">No catches yet.</p>';
   el.querySelectorAll('[data-cdel]').forEach(x=>x.addEventListener('click',async()=>{ catches.splice(+x.dataset.cdel,1); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); }));
+  el.querySelectorAll('[data-nobill]').forEach(x=>x.addEventListener('click',async()=>{ const i=+x.dataset.nobill; catches[i].noBill=!catches[i].noBill; await store.set('catches',catches); drawCatchList(); renderLive(); renderPrizes(); }));
 }
 function drawEvList(){
   const el=document.getElementById('ev-list'); if(!el) return;
