@@ -530,7 +530,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v44, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v45, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1096,7 +1096,7 @@ function renderGallery(){
 /* ===================== live leaderboard + evidence (gated) ===================== */
 function leaderboard(){
   const map={}; boats.forEach(b=>map[b.boat]={boat:b.boat,points:0,fish:0});
-  catches.forEach(c=>{ if(!scored(c)) return; if(!map[c.boat]) map[c.boat]={boat:c.boat,points:0,fish:0}; map[c.boat].points+=catchPoints(c); map[c.boat].fish++; });
+  catches.forEach(c=>{ if(!scored(c) || c.noOverall) return; if(!map[c.boat]) map[c.boat]={boat:c.boat,points:0,fish:0}; map[c.boat].points+=catchPoints(c); map[c.boat].fish++; });
   return Object.values(map).sort((a,b)=>b.points-a.points);
 }
 function hasWeighed(boat,day){ return catches.some(c=>c.boat===boat && !c.bbcomp && String(c.day)===String(day)); }
@@ -1276,10 +1276,11 @@ function drawCatchList(){
   const items=catches.map((c,i)=>({c,i})).filter(x=>!x.c.bbcomp);
   el.innerHTML = items.length ? items.map(({c,i})=> c.nofish
     ? `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · No fish</div><div class="res-meta">Day ${esc(c.day)} · weighed in, nothing caught</div></div><button class="btn-sm danger" data-cdel="${i}">Remove</button></div>`
-    : `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.released?('released, counts '+effWeight(c)+' kg'):(esc(String(c.weight))+' kg')} · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}${c.status==='pending'?' · UNDER REVIEW':c.status==='rejected'?' · rejected':''}${c.noBill?' · not for Billfish award':''}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${MAIN_BILLFISH.has(c.species)?`<button class="btn-sm" data-nobill="${i}">${c.noBill?'Include in Billfish':'Exclude from Billfish'}</button>`:''}<button class="btn-sm danger" data-cdel="${i}">Remove</button></div></div>`
+    : `<div class="res-row"><div><div class="sec" style="font-family:Oswald;text-transform:uppercase">${esc(c.boat)} · ${esc(c.species)}</div><div class="res-meta">${c.released?('released, counts '+effWeight(c)+' kg'):(esc(String(c.weight))+' kg')} · Day ${esc(c.day)} · ${pts(catchPoints(c))} pts${c.angler?(' · '+esc(c.angler)):''}${c.junior?' · junior':''}${c.lady?' · lady':''}${c.status==='pending'?' · UNDER REVIEW':c.status==='rejected'?' · rejected':''}${c.noBill?' · not for Billfish award':''}${c.noOverall?' · not for overall':''}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn-sm" data-noov="${i}">${c.noOverall?'Include in Overall':'Exclude from Overall'}</button>${MAIN_BILLFISH.has(c.species)?`<button class="btn-sm" data-nobill="${i}">${c.noBill?'Include in Billfish':'Exclude from Billfish'}</button>`:''}<button class="btn-sm danger" data-cdel="${i}">Remove</button></div></div>`
   ).join('') : '<p class="note">No catches yet.</p>';
   el.querySelectorAll('[data-cdel]').forEach(x=>x.addEventListener('click',async()=>{ catches.splice(+x.dataset.cdel,1); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); }));
   el.querySelectorAll('[data-nobill]').forEach(x=>x.addEventListener('click',async()=>{ const i=+x.dataset.nobill; catches[i].noBill=!catches[i].noBill; await store.set('catches',catches); drawCatchList(); renderLive(); renderPrizes(); }));
+  el.querySelectorAll('[data-noov]').forEach(x=>x.addEventListener('click',async()=>{ const i=+x.dataset.noov; catches[i].noOverall=!catches[i].noOverall; await store.set('catches',catches); drawCatchList(); renderLive(); renderPrizes(); }));
 }
 function drawEvList(){
   const el=document.getElementById('ev-list'); if(!el) return;
