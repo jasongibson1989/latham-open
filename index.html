@@ -530,7 +530,7 @@
 </section>
 
 <footer><div class="wrap"><div class="fbrand">The Latham Open · Dar es Salaam Yacht Club</div>
-  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v41, Neon + GA4)</div></div></footer>
+  <div>Fishing Section. Tight lines and fair winds. For entries contact the Fishing Secretary: <a href="mailto:fishingsecretary@daryachtclub.co.tz">fishingsecretary@daryachtclub.co.tz</a></div><div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--foam-dim);opacity:.7">Build: 13 October 2026 (v42, Neon + GA4)</div></div></footer>
 
 <!-- ADMIN -->
 <div class="full" id="admin"><div class="full-bar"><h2>Admin · The Latham Open</h2><button class="btn-sm" id="admin-close">Close</button></div>
@@ -1195,6 +1195,7 @@ function renderAdminCatches(){
       if(raw.startsWith('data:')){ const id='ev'+Date.now().toString(36)+Math.floor(Math.random()*1e4); entry.evKey='rev-ev:'+id; await store.set(entry.evKey, raw); }
       else if(raw){ entry.evUrl=raw; }
     }
+    catches=catches.filter(c=>!(c.nofish && c.boat===cb && String(c.day)===String(entry.day)));
     catches.push(entry); await store.set('catches',catches); renderAdminCatches(); renderLive(); renderPrizes(); });
   document.getElementById('add-ev').addEventListener('click',async()=>{ const url=document.getElementById('e-url').value.trim(); if(!url) return; const type=document.getElementById('e-type').value; const boat=document.getElementById('e-boat').value; const caption=document.getElementById('e-cap').value.trim(); evidence.push({boat,type,url,caption}); await store.set('evidence',evidence); if(type==='photo' && !gallery.some(g=>g.url===url)){ gallery.push({url,caption:caption||boat,year:String(new Date().getFullYear())}); await store.set('gallery',gallery); renderGallery(); } renderAdminCatches(); renderLive(); });
   document.getElementById('e-upload').addEventListener('click',()=>pickImage(d=>{ document.getElementById('e-url').value=d; document.getElementById('e-type').value='photo'; }));
@@ -1206,7 +1207,7 @@ function renderAdminCatches(){
 function noFishBoats(day){ return new Set(catches.filter(c=>c.nofish && String(c.day)===String(day)).map(c=>c.boat)); }
 function drawCatchBoats(){
   const dayEl=document.getElementById('c-day'); const sel=document.getElementById('c-boat'); if(!dayEl||!sel) return;
-  const nf=noFishBoats(dayEl.value); const avail=boats.filter(b=>!nf.has(b.boat)); const cur=sel.value;
+  const avail=boats; const cur=sel.value;
   sel.innerHTML = avail.length ? avail.map(b=>`<option>${esc(b.boat)}</option>`).join('') : '<option value="">No boats available for this day</option>';
   if(cur && avail.some(b=>b.boat===cur)) sel.value=cur;
 }
